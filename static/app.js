@@ -205,11 +205,39 @@ function displayResults(data) {
     // Display recommendations
     const recList = document.getElementById('recommendations');
     recList.innerHTML = '';
+    
+    // Parse recommendations to extract severity and text
+    const severityBadges = {
+        'CRITICAL': '<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-800 text-xs font-bold rounded-md"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>CRITICAL</span>',
+        'HIGH': '<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-100 text-orange-800 text-xs font-bold rounded-md"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>HIGH</span>',
+        'MEDIUM': '<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-md"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>MEDIUM</span>',
+        'LOW': '<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-md"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>LOW</span>',
+        'URGENT': '<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-800 text-xs font-bold rounded-md"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>URGENT</span>'
+    };
+    
     data.recommendations.forEach(rec => {
-        const li = document.createElement('li');
-        li.className = 'text-gray-700';
-        li.textContent = rec;
-        recList.appendChild(li);
+        const div = document.createElement('div');
+        div.className = 'flex items-start gap-3 p-3 border border-gray-200 rounded-lg mb-2 hover:bg-gray-50 transition-colors';
+        
+        // Try to extract severity from recommendation text
+        let badge = '';
+        let text = rec;
+        
+        for (const [severity, badgeHtml] of Object.entries(severityBadges)) {
+            const pattern = new RegExp(`\\[${severity}\\]`, 'i');
+            if (pattern.test(rec)) {
+                badge = badgeHtml;
+                text = rec.replace(pattern, '').trim();
+                break;
+            }
+        }
+        
+        div.innerHTML = `
+            ${badge}
+            <span class="text-gray-700 flex-1">${text}</span>
+        `;
+        
+        recList.appendChild(div);
     });
     
     // Display findings
@@ -339,27 +367,109 @@ function displayFindings(category, findings) {
         return;
     }
     
-    const severityColors = {
-        critical: 'bg-red-100 text-red-800 border-red-200',
-        high: 'bg-orange-100 text-orange-800 border-orange-200',
-        medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        low: 'bg-green-100 text-green-800 border-green-200'
+    // Color scheme based on issue type and category
+    const getIssueColors = (type, severity, category) => {
+        // Security issues - red/pink tones
+        if (category === 'security' || type.includes('injection') || type.includes('xss')) {
+            return {
+                bg: 'bg-red-50',
+                border: 'border-red-200',
+                text: 'text-red-800',
+                title: 'text-red-900',
+                icon: 'text-red-600'
+            };
+        }
+        
+        // Hardcoded secrets - beige/tan
+        if (type.includes('secret') || type.includes('hardcoded')) {
+            return {
+                bg: 'bg-orange-50',
+                border: 'border-orange-200',
+                text: 'text-orange-800',
+                title: 'text-orange-900',
+                icon: 'text-orange-600'
+            };
+        }
+        
+        // Debug mode - light yellow
+        if (type.includes('debug')) {
+            return {
+                bg: 'bg-yellow-50',
+                border: 'border-yellow-200',
+                text: 'text-yellow-800',
+                title: 'text-yellow-900',
+                icon: 'text-yellow-600'
+            };
+        }
+        
+        // Dead code (unused, unreachable) - light green/mint
+        if (category === 'dead-code' || type.includes('unused') || type.includes('unreachable')) {
+            return {
+                bg: 'bg-green-50',
+                border: 'border-green-200',
+                text: 'text-green-800',
+                title: 'text-green-900',
+                icon: 'text-green-600'
+            };
+        }
+        
+        // Optimizations - light yellow
+        if (category === 'optimization') {
+            return {
+                bg: 'bg-yellow-50',
+                border: 'border-yellow-200',
+                text: 'text-yellow-800',
+                title: 'text-yellow-900',
+                icon: 'text-yellow-600'
+            };
+        }
+        
+        // Default based on severity
+        const severityColors = {
+            critical: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800', title: 'text-red-900', icon: 'text-red-600' },
+            high: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', title: 'text-orange-900', icon: 'text-orange-600' },
+            medium: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800', title: 'text-yellow-900', icon: 'text-yellow-600' },
+            low: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-800', title: 'text-green-900', icon: 'text-green-600' }
+        };
+        
+        return severityColors[severity] || severityColors.medium;
+    };
+    
+    const getSeverityBadge = (severity) => {
+        const badges = {
+            critical: '<span class="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-md">CRITICAL</span>',
+            high: '<span class="px-3 py-1 bg-orange-600 text-white text-xs font-bold rounded-md">HIGH</span>',
+            medium: '<span class="px-3 py-1 bg-yellow-600 text-white text-xs font-bold rounded-md">MEDIUM</span>',
+            low: '<span class="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-md">LOW</span>'
+        };
+        return badges[severity] || badges.medium;
     };
     
     findings.forEach(finding => {
+        const colors = getIssueColors(finding.type.toLowerCase(), finding.severity, category);
         const div = document.createElement('div');
-        div.className = `border-l-4 p-4 mb-4 ${severityColors[finding.severity]}`;
+        div.className = `${colors.bg} border ${colors.border} rounded-lg p-4 mb-4`;
         
         div.innerHTML = `
-            <div class="flex justify-between items-start mb-2">
-                <div class="font-semibold">${finding.type.replace(/_/g, ' ').toUpperCase()}</div>
-                <div class="text-sm">Line ${finding.line}</div>
+            <div class="flex items-start gap-3 mb-3">
+                <svg class="w-6 h-6 ${colors.icon} flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <div class="flex-1">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="font-bold ${colors.title} text-lg">${finding.type.replace(/_/g, ' ').toUpperCase()}</div>
+                        <div class="flex items-center gap-2">
+                            ${getSeverityBadge(finding.severity)}
+                            <span class="text-sm ${colors.text}">Line ${finding.line}</span>
+                        </div>
+                    </div>
+                    <div class="text-sm mb-3 ${colors.text}">${finding.message}</div>
+                    <div class="bg-gray-900 text-gray-100 p-3 rounded-lg text-sm font-mono overflow-x-auto">
+                        ${escapeHtml(finding.code)}
+                    </div>
+                    ${finding.cwe ? `<div class="text-xs mt-2 ${colors.text}">${finding.cwe}</div>` : ''}
+                </div>
             </div>
-            <div class="text-sm mb-2">${finding.message}</div>
-            <div class="bg-gray-800 text-gray-100 p-2 rounded text-sm font-mono overflow-x-auto">
-                ${escapeHtml(finding.code)}
-            </div>
-            ${finding.cwe ? `<div class="text-xs mt-2 text-gray-600">${finding.cwe}</div>` : ''}
         `;
         
         container.appendChild(div);
@@ -369,12 +479,13 @@ function displayFindings(category, findings) {
 function showTab(tabName) {
     // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('border-blue-600', 'text-blue-600');
-        btn.classList.add('border-transparent', 'text-gray-600');
+        btn.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+        btn.classList.add('text-gray-700');
     });
     
-    document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-600');
-    document.getElementById(`tab-${tabName}`).classList.add('border-blue-600', 'text-blue-600');
+    const activeTab = document.getElementById(`tab-${tabName}`);
+    activeTab.classList.remove('text-gray-700');
+    activeTab.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
     
     // Show/hide content
     document.querySelectorAll('.findings-tab').forEach(tab => {

@@ -7,6 +7,8 @@ from fastapi.responses import FileResponse
 import uuid
 from datetime import datetime
 from typing import List
+import requests
+import re
 
 from .models import (
     AnalyzeRequest,
@@ -19,7 +21,6 @@ from .models import (
 from .models_repo import (
     AnalyzeRepoRequest,
     AnalyzeRepoResponse,
-    RepoErrorResponse,
     ListFilesRequest,
     ListFilesResponse
 )
