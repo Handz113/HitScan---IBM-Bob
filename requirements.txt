@@ -2,7 +2,7 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
-python-multipart==0.0.6
+python-multipart==0.0.27
 
 # Code Analysis
 esprima==4.0.1
@@ -12,7 +12,7 @@ bandit==1.7.5
 
 # GitHub Integration
 GitPython==3.1.40
-requests==2.31.0
+requests==2.33.0
 
 # Utilities
 typing-extensions==4.8.0
