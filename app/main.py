@@ -1,0 +1,161 @@
+"""
+FastAPI application for code analysis
+"""
+from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import uuid
+from datetime import datetime
+from typing import List
+
+from .models import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    HealthResponse,
+    Finding,
+    FindingsGroup,
+    CodeMetrics
+)
+from .utils import detect_language
+from .analyzers import (
+    DeadCodeAnalyzer,
+    SecurityAnalyzer,
+    OptimizationAnalyzer
+)
+from .risk import RiskCalculator, RiskMatrixGenerator
+
+# Create FastAPI app
+app = FastAPI(
+    title="Code Analysis Demo Tool",
+    description="Analyze code for dead code, security issues, and optimization opportunities",
+    version="1.0.0"
+)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+async def root():
+    """Serve the web UI"""
+    return FileResponse("static/index.html")
+
+
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    """Health check endpoint"""
+    return HealthResponse(
+        status="healthy",
+        version="1.0.0",
+        supported_languages=["python", "javascript", "java"]
+    )
+
+
+@app.post("/analyze", response_model=AnalyzeResponse)
+async def analyze_code(request: AnalyzeRequest):
+    """
+    Analyze code snippet and return risk matrix
+    
+    Args:
+        request: Code analysis request
+        
+    Returns:
+        Complete analysis with risk matrix
+    """
+    try:
+        # Detect language if not provided
+        language = request.language
+        if not language:
+            detected = detect_language(request.code)
+            if not detected:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Could not detect language. Please specify language explicitly."
+                )
+            language = detected
+        
+        # Validate language
+        if language not in ["python", "javascript", "java"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported language: {language}"
+            )
+        
+        # Run analyzers
+        dead_code_analyzer = DeadCodeAnalyzer(request.code, language)
+        security_analyzer = SecurityAnalyzer(request.code, language)
+        optimization_analyzer = OptimizationAnalyzer(request.code, language)
+        
+        dead_code_findings = dead_code_analyzer.analyze()
+        security_findings = security_analyzer.analyze()
+        optimization_findings = optimization_analyzer.analyze()
+        
+        # Convert to Finding objects
+        findings_group = FindingsGroup(
+            dead_code=[Finding(**f) for f in dead_code_findings],
+            security_issues=[Finding(**f) for f in security_findings],
+            optimizations=[Finding(**f) for f in optimization_findings]
+        )
+        
+        # Combine all findings for risk calculation
+        all_findings = dead_code_findings + security_findings + optimization_findings
+        
+        # Generate risk matrix
+        risk_matrix = RiskMatrixGenerator.generate_matrix(all_findings)
+        recommendations = RiskMatrixGenerator.generate_recommendations(risk_matrix)
+        
+        # Calculate code metrics
+        lines_of_code = len(request.code.split('\n'))
+        
+        # Try to calculate complexity (Python only)
+        complexity = 1.0
+        maintainability = 100.0
+        
+        if language == 'python':
+            try:
+                from radon.complexity import cc_visit
+                from radon.metrics import mi_visit
+                
+                complexity_results = cc_visit(request.code)
+                if complexity_results:
+                    complexity = sum(r.complexity for r in complexity_results) / len(complexity_results)
+                
+                mi_result = mi_visit(request.code, multi=True)
+                if mi_result:
+                    maintainability = mi_result
+            except:
+                pass  # Use defaults if radon fails
+        
+        code_metrics = CodeMetrics(
+            lines_of_code=lines_of_code,
+            cyclomatic_complexity=round(complexity, 1),
+            maintainability_index=round(maintainability, 1)
+        )
+        
+        # Create response
+        response = AnalyzeResponse(
+            analysis_id=str(uuid.uuid4()),
+            timestamp=datetime.utcnow().isoformat() + 'Z',
+            language=language,
+            code_metrics=code_metrics,
+            findings=findings_group,
+            risk_matrix=risk_matrix,
+            recommendations=recommendations
+        )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Analysis failed: {str(e)}"
+        )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# Made with Bob
