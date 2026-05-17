@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Analysis - Code Analysis Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">🔍 GitHub Repository Analysis</h1>
+                    <p class="text-gray-600">Analyze entire GitHub repositories for code quality issues</p>
+                </div>
+                <a href="/" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">← Back to Code Analysis</a>
+            </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Repository Input</h2>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">GitHub Repository URL</label>
+                <input 
+                    type="text" 
+                    id="repo-url" 
+                    placeholder="https://github.com/owner/repository"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Maximum Files to List</label>
+                <input
+                    type="number"
+                    id="max-files"
+                    value="100"
+                    min="1"
+                    max="500"
+                    class="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                <p class="text-sm text-gray-500 mt-1">Maximum files to list (1-500)</p>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="listRepositoryFiles()" id="list-btn" class="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors">
+                    List Files
+                </button>
+                <button onclick="analyzeRepository()" id="analyze-btn" class="hidden px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                    Analyze Selected Files
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="hidden bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex items-center justify-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <span class="ml-4 text-gray-700">Cloning and analyzing repository... This may take a minute.</span>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div class="flex items-center">
+                <span class="text-red-600 font-semibold mr-2">Error:</span>
+                <span id="error-message" class="text-red-700"></span>
+            </div>
+        </div>
+
+        <!-- File Selection Section -->
+        <div id="file-selection" class="hidden bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">Select Files to Analyze</h2>
+                <div class="flex gap-2">
+                    <button onclick="selectAllFiles()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                        Select All
+                    </button>
+                    <button onclick="selectNoneFiles()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                        Select None
+                    </button>
+                </div>
+            </div>
+            <div class="mb-4">
+                <p class="text-sm text-gray-600">
+                    <span id="selected-count">0</span> of <span id="total-count">0</span> files selected
+                </p>
+            </div>
+            <div id="file-list" class="max-h-96 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-4">
+                <!-- File checkboxes will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="hidden">
+            <!-- Repository Info -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Repository Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <div class="text-sm text-gray-600">Repository</div>
+                        <div id="repo-name" class="text-lg font-semibold text-gray-800"></div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-600">Files Analyzed</div>
+                        <div id="files-count" class="text-lg font-semibold text-gray-800"></div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-600">Languages</div>
+                        <div id="languages" class="text-lg font-semibold text-gray-800"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="text-sm text-gray-600 mb-1">Total Issues</div>
+                    <div id="total-issues" class="text-2xl font-bold text-gray-800"></div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="text-sm text-gray-600 mb-1">Total Lines</div>
+                    <div id="total-lines" class="text-2xl font-bold text-gray-800"></div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="text-sm text-gray-600 mb-1">Issues per 1K Lines</div>
+                    <div id="issues-per-1k" class="text-2xl font-bold text-gray-800"></div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="text-sm text-gray-600 mb-1">Security Issues</div>
+                    <div id="security-count" class="text-2xl font-bold text-red-600"></div>
+                </div>
+            </div>
+
+            <!-- AI Fix Prompt -->
+            <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow-md p-6 mb-6 border-2 border-purple-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800 mb-1">🤖 AI Repository Fix Prompt</h2>
+                        <p class="text-sm text-gray-600">Copy this comprehensive prompt to fix all issues across the repository</p>
+                    </div>
+                    <button onclick="copyRepoPromptToClipboard()" class="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                        Copy Prompt
+                    </button>
+                </div>
+                <div class="bg-white rounded-lg p-4 border border-gray-200">
+                    <pre id="repo-fix-prompt" class="text-sm text-gray-700 whitespace-pre-wrap font-mono max-h-96 overflow-y-auto"></pre>
+                </div>
+            </div>
+
+            <!-- Issue Breakdown Chart -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Issue Breakdown</h2>
+                <canvas id="breakdown-chart" height="100"></canvas>
+            </div>
+
+            <!-- Most Problematic Files -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Most Problematic Files</h2>
+                <div id="problematic-files" class="space-y-2"></div>
+            </div>
+
+            <!-- File Comparison Table -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">File Comparison</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Language</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lines</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issues</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Density</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="file-table" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Detailed Findings by File -->
+            <div id="file-details" class="space-y-6">
+            </div>
+        </div>
+    </div>
+
+    <script src="repo.js"></script>
+</body>
+</html>
