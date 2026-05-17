@@ -21,10 +21,7 @@ from .models import (
 from .models_repo import (
     AnalyzeRepoRequest,
     AnalyzeRepoResponse,
-<<<<<<< HEAD
     RepoErrorResponse,
-=======
->>>>>>> ffb5115ae901294e39515f984dbe0a73c4c8b36a
     ListFilesRequest,
     ListFilesResponse
 )
