@@ -1,8 +1,8 @@
 """
 Pydantic models for repository analysis
 """
-from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field
 
 
 class ListFilesRequest(BaseModel):

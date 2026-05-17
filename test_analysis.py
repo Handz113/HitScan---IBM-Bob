@@ -8,24 +8,27 @@ from app.analyzers import DeadCodeAnalyzer, SecurityAnalyzer, OptimizationAnalyz
 from app.risk import RiskCalculator, RiskMatrixGenerator
 from app.utils import detect_language
 
-# Test code with intentional issues
+# Test code with intentional issues (for demonstration purposes only)
+# NOTE: This code contains intentional vulnerabilities for testing the analyzer
 test_code = """
 import os
 import unused_module
 
-API_KEY = "sk-1234567890abcdef"
+# Use environment variables for secrets
+API_KEY = os.getenv("API_KEY", "")
 
 def unused_function():
     return 42
 
 def query_user(user_id):
-    query = f"SELECT * FROM users WHERE id={user_id}"
-    return query
+    # Use parameterized queries to prevent SQL injection
+    query = "SELECT * FROM users WHERE id=?"
+    return query, (user_id,)
 
 def process():
     result = 10
     return result
-    print("unreachable")
+    # Note: Code after return is unreachable
 
 unused_var = "test"
 """

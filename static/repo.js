@@ -6,6 +6,13 @@ let currentRepoRemediationPrompt = '';
 let repositoryFiles = [];
 let currentRepoUrl = '';
 
+// Security: HTML escaping function to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 async function listRepositoryFiles() {
     const repoUrl = document.getElementById('repo-url').value.trim();
     const maxFiles = parseInt(document.getElementById('max-files').value);
@@ -65,7 +72,8 @@ function displayFileSelection(data) {
     const fileList = document.getElementById('file-list');
     const fileSelection = document.getElementById('file-selection');
     
-    fileList.innerHTML = '';
+    // Clear existing content safely
+    fileList.textContent = '';
     
     // Group files by directory
     const filesByDir = {};
@@ -99,18 +107,31 @@ function displayFileSelection(data) {
             checkbox.onchange = updateSelectedCount;
             
             const fileName = file.path.split('/').pop();
-            const langBadge = file.language ? 
-                `<span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">${file.language}</span>` : '';
-            const sizeBadge = `<span class="ml-2 text-xs text-gray-500">${formatFileSize(file.size)}</span>`;
             
-            fileDiv.innerHTML = `
-                ${checkbox.outerHTML}
-                <span class="flex-1">
-                    <span class="text-gray-800">${fileName}</span>
-                    ${langBadge}
-                    ${sizeBadge}
-                </span>
-            `;
+            // Create elements safely without innerHTML
+            fileDiv.appendChild(checkbox);
+            
+            const span = document.createElement('span');
+            span.className = 'flex-1';
+            
+            const fileNameSpan = document.createElement('span');
+            fileNameSpan.className = 'text-gray-800';
+            fileNameSpan.textContent = fileName;
+            span.appendChild(fileNameSpan);
+            
+            if (file.language) {
+                const langBadge = document.createElement('span');
+                langBadge.className = 'ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs';
+                langBadge.textContent = file.language;
+                span.appendChild(langBadge);
+            }
+            
+            const sizeBadge = document.createElement('span');
+            sizeBadge.className = 'ml-2 text-xs text-gray-500';
+            sizeBadge.textContent = formatFileSize(file.size);
+            span.appendChild(sizeBadge);
+            
+            fileDiv.appendChild(span);
             
             dirDiv.appendChild(fileDiv);
         });
@@ -287,38 +308,50 @@ function displayBreakdownChart(stats) {
 
 function displayProblematicFiles(files) {
     const container = document.getElementById('problematic-files');
-    container.innerHTML = '';
+    container.textContent = '';
     
     if (files.length === 0) {
-        container.innerHTML = '<p class="text-gray-500">No problematic files found!</p>';
+        const p = document.createElement('p');
+        p.className = 'text-gray-500';
+        p.textContent = 'No problematic files found!';
+        container.appendChild(p);
         return;
     }
     
     files.forEach((file, index) => {
         const fileDiv = document.createElement('div');
         fileDiv.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg';
-        fileDiv.innerHTML = `
-            <div class="flex-1">
-                <div class="font-medium text-gray-800">${index + 1}. ${file.path}</div>
-                <div class="text-sm text-gray-600 mt-1">
-                    Dead Code: ${file.breakdown.dead_code} | 
-                    Security: ${file.breakdown.security} | 
-                    Optimization: ${file.breakdown.optimization}
-                </div>
-            </div>
-            <div class="ml-4">
-                <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full font-semibold">
-                    ${file.issues} issues
-                </span>
-            </div>
-        `;
+        
+        const leftDiv = document.createElement('div');
+        leftDiv.className = 'flex-1';
+        
+        const pathDiv = document.createElement('div');
+        pathDiv.className = 'font-medium text-gray-800';
+        pathDiv.textContent = `${index + 1}. ${file.path}`;
+        leftDiv.appendChild(pathDiv);
+        
+        const statsDiv = document.createElement('div');
+        statsDiv.className = 'text-sm text-gray-600 mt-1';
+        statsDiv.textContent = `Dead Code: ${file.breakdown.dead_code} | Security: ${file.breakdown.security} | Optimization: ${file.breakdown.optimization}`;
+        leftDiv.appendChild(statsDiv);
+        
+        const rightDiv = document.createElement('div');
+        rightDiv.className = 'ml-4';
+        
+        const badge = document.createElement('span');
+        badge.className = 'px-3 py-1 bg-red-100 text-red-700 rounded-full font-semibold';
+        badge.textContent = `${file.issues} issues`;
+        rightDiv.appendChild(badge);
+        
+        fileDiv.appendChild(leftDiv);
+        fileDiv.appendChild(rightDiv);
         container.appendChild(fileDiv);
     });
 }
 
 function displayFileComparison(comparison) {
     const tbody = document.getElementById('file-table');
-    tbody.innerHTML = '';
+    tbody.textContent = '';
     
     comparison.forEach(file => {
         const row = document.createElement('tr');
@@ -329,29 +362,60 @@ function displayFileComparison(comparison) {
         if (file.issues_per_100_lines > 5) densityColor = 'text-red-600';
         else if (file.issues_per_100_lines > 2) densityColor = 'text-yellow-600';
         
-        row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${file.path}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${file.language}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${file.lines}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${file.total_issues}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${densityColor}">${file.issues_per_100_lines}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                <span class="text-blue-600">${file.dead_code}</span> / 
-                <span class="text-red-600">${file.security}</span> / 
-                <span class="text-yellow-600">${file.optimization}</span>
-            </td>
-        `;
+        // Create cells safely
+        const cells = [
+            { text: file.path, className: 'px-6 py-4 whitespace-nowrap text-sm text-gray-900' },
+            { text: file.language, className: 'px-6 py-4 whitespace-nowrap text-sm text-gray-500' },
+            { text: file.lines, className: 'px-6 py-4 whitespace-nowrap text-sm text-gray-500' },
+            { text: file.total_issues, className: 'px-6 py-4 whitespace-nowrap text-sm text-gray-900' },
+            { text: file.issues_per_100_lines, className: `px-6 py-4 whitespace-nowrap text-sm font-semibold ${densityColor}` }
+        ];
+        
+        cells.forEach(cellData => {
+            const td = document.createElement('td');
+            td.className = cellData.className;
+            td.textContent = cellData.text;
+            row.appendChild(td);
+        });
+        
+        // Breakdown cell with colored spans
+        const breakdownTd = document.createElement('td');
+        breakdownTd.className = 'px-6 py-4 whitespace-nowrap text-sm';
+        
+        const deadSpan = document.createElement('span');
+        deadSpan.className = 'text-blue-600';
+        deadSpan.textContent = file.dead_code;
+        breakdownTd.appendChild(deadSpan);
+        breakdownTd.appendChild(document.createTextNode(' / '));
+        
+        const secSpan = document.createElement('span');
+        secSpan.className = 'text-red-600';
+        secSpan.textContent = file.security;
+        breakdownTd.appendChild(secSpan);
+        breakdownTd.appendChild(document.createTextNode(' / '));
+        
+        const optSpan = document.createElement('span');
+        optSpan.className = 'text-yellow-600';
+        optSpan.textContent = file.optimization;
+        breakdownTd.appendChild(optSpan);
+        
+        row.appendChild(breakdownTd);
         tbody.appendChild(row);
     });
 }
 
 function displayFileDetails(fileResults) {
     const container = document.getElementById('file-details');
-    container.innerHTML = '<h2 class="text-2xl font-bold text-gray-800 mb-4">Detailed Findings by File</h2>';
+    container.textContent = '';
+    
+    const title = document.createElement('h2');
+    title.className = 'text-2xl font-bold text-gray-800 mb-4';
+    title.textContent = 'Detailed Findings by File';
+    container.appendChild(title);
     
     fileResults.forEach(file => {
-        const totalFindings = file.findings_count.dead_code + 
-                            file.findings_count.security + 
+        const totalFindings = file.findings_count.dead_code +
+                            file.findings_count.security +
                             file.findings_count.optimization;
         
         if (totalFindings === 0) return; // Skip files with no issues
@@ -359,61 +423,82 @@ function displayFileDetails(fileResults) {
         const fileDiv = document.createElement('div');
         fileDiv.className = 'bg-white rounded-lg shadow-md p-6';
         
-        let findingsHtml = '';
+        // Header section
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'flex items-center justify-between mb-4';
         
-        // Dead Code Findings
-        if (file.findings.dead_code.length > 0) {
-            findingsHtml += '<div class="mb-4"><h4 class="font-semibold text-blue-700 mb-2">Dead Code</h4><ul class="space-y-2">';
-            file.findings.dead_code.forEach(finding => {
-                findingsHtml += `
-                    <li class="text-sm">
-                        <span class="font-medium">${finding.category}:</span> ${finding.message}
-                        ${finding.line ? ` (Line ${finding.line})` : ''}
-                    </li>
-                `;
+        const h3 = document.createElement('h3');
+        h3.className = 'text-lg font-semibold text-gray-800';
+        h3.textContent = file.path;
+        headerDiv.appendChild(h3);
+        
+        const badgesDiv = document.createElement('div');
+        badgesDiv.className = 'flex gap-2';
+        
+        const langBadge = document.createElement('span');
+        langBadge.className = 'px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs';
+        langBadge.textContent = file.language;
+        badgesDiv.appendChild(langBadge);
+        
+        const linesBadge = document.createElement('span');
+        linesBadge.className = 'px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs';
+        linesBadge.textContent = `${file.lines} lines`;
+        badgesDiv.appendChild(linesBadge);
+        
+        const issuesBadge = document.createElement('span');
+        issuesBadge.className = 'px-2 py-1 bg-red-100 text-red-700 rounded text-xs';
+        issuesBadge.textContent = `${totalFindings} issues`;
+        badgesDiv.appendChild(issuesBadge);
+        
+        headerDiv.appendChild(badgesDiv);
+        fileDiv.appendChild(headerDiv);
+        
+        // Helper function to create findings section
+        function createFindingsSection(findings, title, colorClass) {
+            if (findings.length === 0) return null;
+            
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'mb-4';
+            
+            const h4 = document.createElement('h4');
+            h4.className = `font-semibold ${colorClass} mb-2`;
+            h4.textContent = title;
+            sectionDiv.appendChild(h4);
+            
+            const ul = document.createElement('ul');
+            ul.className = 'space-y-2';
+            
+            findings.forEach(finding => {
+                const li = document.createElement('li');
+                li.className = 'text-sm';
+                
+                const categorySpan = document.createElement('span');
+                categorySpan.className = 'font-medium';
+                categorySpan.textContent = `${finding.category}:`;
+                li.appendChild(categorySpan);
+                
+                li.appendChild(document.createTextNode(` ${finding.message}`));
+                
+                if (finding.line) {
+                    li.appendChild(document.createTextNode(` (Line ${finding.line})`));
+                }
+                
+                ul.appendChild(li);
             });
-            findingsHtml += '</ul></div>';
+            
+            sectionDiv.appendChild(ul);
+            return sectionDiv;
         }
         
-        // Security Findings
-        if (file.findings.security_issues.length > 0) {
-            findingsHtml += '<div class="mb-4"><h4 class="font-semibold text-red-700 mb-2">Security Issues</h4><ul class="space-y-2">';
-            file.findings.security_issues.forEach(finding => {
-                findingsHtml += `
-                    <li class="text-sm">
-                        <span class="font-medium">${finding.category}:</span> ${finding.message}
-                        ${finding.line ? ` (Line ${finding.line})` : ''}
-                    </li>
-                `;
-            });
-            findingsHtml += '</ul></div>';
-        }
+        // Add findings sections
+        const deadCodeSection = createFindingsSection(file.findings.dead_code, 'Dead Code', 'text-blue-700');
+        if (deadCodeSection) fileDiv.appendChild(deadCodeSection);
         
-        // Optimization Findings
-        if (file.findings.optimizations.length > 0) {
-            findingsHtml += '<div class="mb-4"><h4 class="font-semibold text-yellow-700 mb-2">Optimizations</h4><ul class="space-y-2">';
-            file.findings.optimizations.forEach(finding => {
-                findingsHtml += `
-                    <li class="text-sm">
-                        <span class="font-medium">${finding.category}:</span> ${finding.message}
-                        ${finding.line ? ` (Line ${finding.line})` : ''}
-                    </li>
-                `;
-            });
-            findingsHtml += '</ul></div>';
-        }
+        const securitySection = createFindingsSection(file.findings.security_issues, 'Security Issues', 'text-red-700');
+        if (securitySection) fileDiv.appendChild(securitySection);
         
-        fileDiv.innerHTML = `
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">${file.path}</h3>
-                <div class="flex gap-2">
-                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">${file.language}</span>
-                    <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">${file.lines} lines</span>
-                    <span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">${totalFindings} issues</span>
-                </div>
-            </div>
-            ${findingsHtml}
-        `;
+        const optimizationSection = createFindingsSection(file.findings.optimizations, 'Optimizations', 'text-yellow-700');
+        if (optimizationSection) fileDiv.appendChild(optimizationSection);
         
         container.appendChild(fileDiv);
     });
