@@ -217,8 +217,43 @@ function displayResults(data) {
     displayFindings('dead-code', data.findings.dead_code);
     displayFindings('optimization', data.findings.optimizations);
     
+    // Display AI fix prompt
+    currentRemediationPrompt = data.remediation_prompt;
+    document.getElementById('ai-fix-prompt').textContent = data.remediation_prompt;
+    
     // Show first tab
     showTab('security');
+}
+
+// Copy prompt to clipboard
+function copyPromptToClipboard() {
+    if (!currentRemediationPrompt) {
+        alert('No prompt available to copy');
+        return;
+    }
+    
+    navigator.clipboard.writeText(currentRemediationPrompt).then(() => {
+        // Show success feedback
+        const button = event.target.closest('button');
+        const originalText = button.innerHTML;
+        button.innerHTML = `
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Copied!
+        `;
+        button.classList.add('bg-green-600');
+        button.classList.remove('bg-purple-600');
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-purple-600');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard. Please try selecting and copying manually.');
+    });
 }
 
 function displayRiskMatrix(riskMatrix) {
@@ -356,3 +391,6 @@ function escapeHtml(text) {
 }
 
 // Made with Bob
+
+// Store the current remediation prompt
+let currentRemediationPrompt = '';

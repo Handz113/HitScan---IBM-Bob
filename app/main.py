@@ -16,12 +16,21 @@ from .models import (
     FindingsGroup,
     CodeMetrics
 )
+from .models_repo import (
+    AnalyzeRepoRequest,
+    AnalyzeRepoResponse,
+    RepoErrorResponse,
+    ListFilesRequest,
+    ListFilesResponse
+)
 from .utils import detect_language
+from .utils.prompt_generator import AIFixPromptGenerator
 from .analyzers import (
     DeadCodeAnalyzer,
     SecurityAnalyzer,
     OptimizationAnalyzer
 )
+from .analyzers.repository import RepositoryAnalyzer
 from .risk import RiskCalculator, RiskMatrixGenerator
 
 # Create FastAPI app
@@ -132,6 +141,24 @@ async def analyze_code(request: AnalyzeRequest):
             maintainability_index=round(maintainability, 1)
         )
         
+        # Generate AI fix prompt
+        findings_dict = {
+            'dead_code': dead_code_findings,
+            'security_issues': security_findings,
+            'optimizations': optimization_findings
+        }
+        
+        remediation_prompt = AIFixPromptGenerator.generate_fix_prompt(
+            code=request.code,
+            language=language,
+            findings=findings_dict,
+            code_metrics={
+                'lines_of_code': lines_of_code,
+                'cyclomatic_complexity': round(complexity, 1),
+                'maintainability_index': round(maintainability, 1)
+            }
+        )
+        
         # Create response
         response = AnalyzeResponse(
             analysis_id=str(uuid.uuid4()),
@@ -140,7 +167,8 @@ async def analyze_code(request: AnalyzeRequest):
             code_metrics=code_metrics,
             findings=findings_group,
             risk_matrix=risk_matrix,
-            recommendations=recommendations
+            recommendations=recommendations,
+            remediation_prompt=remediation_prompt
         )
         
         return response
@@ -152,6 +180,103 @@ async def analyze_code(request: AnalyzeRequest):
             status_code=500,
             detail=f"Analysis failed: {str(e)}"
         )
+
+
+
+@app.post("/list-repo-files")
+async def list_repository_files(request: ListFilesRequest):
+    """
+    List all code files in a GitHub repository without analyzing
+    
+    Args:
+        request: Repository listing request with GitHub URL
+        
+    Returns:
+        List of all code files in the repository
+    """
+    try:
+        # Validate GitHub URL
+        if not ('github.com' in request.repo_url):
+            raise HTTPException(
+                status_code=400,
+                detail="Only GitHub repositories are supported"
+            )
+        
+        # Create repository analyzer
+        analyzer = RepositoryAnalyzer(request.repo_url)
+        
+        # List files
+        result = analyzer.list_files(max_files=request.max_files)
+        
+        return ListFilesResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list repository files: {str(e)}"
+        )
+
+
+@app.post("/analyze-repo")
+async def analyze_repository(request: AnalyzeRepoRequest):
+    """
+    Analyze a GitHub repository
+    
+    Args:
+        request: Repository analysis request with GitHub URL
+        
+    Returns:
+        Complete repository analysis with aggregated results
+    """
+    try:
+        # Validate GitHub URL
+        if not ('github.com' in request.repo_url):
+            raise HTTPException(
+                status_code=400,
+                detail="Only GitHub repositories are supported"
+            )
+        
+        # Create repository analyzer
+        analyzer = RepositoryAnalyzer(request.repo_url)
+        
+        # Analyze repository
+        result = analyzer.analyze(
+            max_files=request.max_files,
+            selected_files=request.selected_files
+        )
+        
+        # Check for errors
+        if 'error' in result:
+            return RepoErrorResponse(**result)
+        
+        # Generate repository-wide AI fix prompt
+        repo_info = {
+            'owner': result['owner'],
+            'repo_name': result['repo_name'],
+            'repo_url': result['repo_url']
+        }
+        
+        remediation_prompt = AIFixPromptGenerator.generate_repository_fix_prompt(
+            repo_info=repo_info,
+            file_results=result['file_results'],
+            aggregated_stats=result['aggregated_stats']
+        )
+        
+        # Add prompt to result
+        result['remediation_prompt'] = remediation_prompt
+        
+        return AnalyzeRepoResponse(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Repository analysis failed: {str(e)}"
+        )
+
 
 
 if __name__ == "__main__":

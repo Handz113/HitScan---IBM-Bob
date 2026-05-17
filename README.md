@@ -1,14 +1,16 @@
 # Code Analysis Demo Tool 🔍
 
-A lightweight, single-use demo tool that analyzes code snippets for dead code, security vulnerabilities, and optimization opportunities. Built for hackathon presentation with Python/FastAPI backend and minimal web UI.
+A lightweight, single-use demo tool that analyzes code snippets and entire GitHub repositories for dead code, security vulnerabilities, and optimization opportunities. Built for hackathon presentation with Python/FastAPI backend and minimal web UI.
 
 ## Features
 
-✨ **Multi-Language Support**: Analyzes Python, JavaScript, and Java code  
-🔒 **Security Scanning**: Detects SQL injection, XSS, hardcoded secrets, and more  
-🧹 **Dead Code Detection**: Finds unused variables, functions, imports, and unreachable code  
-⚡ **Optimization Analysis**: Identifies inefficient patterns and complexity issues  
-📊 **Risk Matrix**: Visual severity vs. likelihood matrix with color-coded zones  
+✨ **Multi-Language Support**: Analyzes Python, JavaScript, and Java code
+🔒 **Security Scanning**: Detects SQL injection, XSS, hardcoded secrets, and more
+🧹 **Dead Code Detection**: Finds unused variables, functions, imports, and unreachable code
+⚡ **Optimization Analysis**: Identifies inefficient patterns and complexity issues
+📊 **Risk Matrix**: Visual severity vs. likelihood matrix with color-coded zones
+📦 **GitHub Repository Analysis**: Clone and analyze entire repositories
+📈 **Aggregated Reporting**: Repository-wide statistics and file comparisons
 🎯 **Zero Infrastructure**: No Docker, no database, runs locally in minutes
 
 ## Quick Start
@@ -18,11 +20,39 @@ A lightweight, single-use demo tool that analyzes code snippets for dead code, s
 - Python 3.8 or higher
 - pip (Python package manager)
 
-### Installation
+### Installation & Running
+
+#### Option 1: Quick Start Script (Recommended)
+
+**Windows:**
+```bash
+# Double-click run.bat or run in terminal:
+run.bat
+```
+
+**Linux/Mac:**
+```bash
+# Make executable (first time only):
+chmod +x run.sh
+
+# Run the script:
+./run.sh
+```
+
+The script will automatically:
+- Create virtual environment if needed
+- Install dependencies
+- Start the FastAPI server
+
+#### Option 2: Manual Setup
 
 1. **Clone or navigate to the project directory**:
 ```bash
+# Windows
 cd f:/IBMBob
+
+# Linux/Mac
+cd /path/to/HitScan---IBM-Bob
 ```
 
 2. **Create and activate virtual environment**:
@@ -41,9 +71,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Running the Application
-
-**Start the server**:
+4. **Start the server**:
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
@@ -96,22 +124,34 @@ code-analysis-demo/
 
 ## Usage
 
-### Web UI
+### Web UI - Code Snippet Analysis
 
 1. **Load Example Code**: Click one of the example buttons (Python/JavaScript/Java)
 2. **Or Paste Your Code**: Enter your own code in the editor
 3. **Select Language**: Choose language or leave as "Auto-detect"
 4. **Click Analyze**: Wait for results (typically <2 seconds)
-5. **Review Results**: 
+5. **Review Results**:
    - Summary cards show risk level, total issues, LOC, complexity
    - Risk Matrix visualizes findings by severity and likelihood
    - Recommendations provide actionable next steps
    - Findings tabs show detailed issues by category
 
+### Web UI - Repository Analysis
+
+1. **Navigate to Repository Analysis**: Click "📦 Analyze Repository" button
+2. **Enter GitHub URL**: Paste a GitHub repository URL (e.g., `https://github.com/owner/repo`)
+3. **Set Max Files**: Choose how many files to analyze (default: 100)
+4. **Click Analyze Repository**: Wait for cloning and analysis (may take 1-2 minutes)
+5. **Review Results**:
+   - Repository-wide statistics and issue breakdown
+   - Most problematic files ranked by issue density
+   - File comparison table with detailed metrics
+   - Per-file detailed findings with line numbers
+
 ### API Endpoints
 
 #### POST `/analyze`
-Analyze code and return risk matrix.
+Analyze code snippet and return risk matrix.
 
 **Request**:
 ```json
@@ -145,6 +185,40 @@ Analyze code and return risk matrix.
     "visualization": {...}
   },
   "recommendations": [...]
+}
+```
+
+#### POST `/analyze-repo`
+Analyze a GitHub repository.
+
+**Request**:
+```json
+{
+  "repo_url": "https://github.com/owner/repository",
+  "max_files": 100
+}
+```
+
+**Response**:
+```json
+{
+  "owner": "owner",
+  "repo_name": "repository",
+  "files_analyzed": 45,
+  "total_lines": 5234,
+  "languages": ["python", "javascript"],
+  "aggregated_stats": {
+    "total_issues": 127,
+    "issues_per_1000_lines": 24.3,
+    "breakdown": {
+      "dead_code": 45,
+      "security": 12,
+      "optimization": 70
+    },
+    "most_problematic_files": [...]
+  },
+  "file_comparison": [...],
+  "file_results": [...]
 }
 ```
 
@@ -217,6 +291,26 @@ Severity
 4. **Show API**: Demonstrate curl command for technical audience
 5. **Discuss Use Cases**: CI/CD integration, pre-commit hooks, code reviews
 
+## Helper Scripts
+
+### Activation Scripts
+
+For convenience, activation scripts are provided to quickly activate the virtual environment:
+
+**Windows (PowerShell):**
+```powershell
+.\activate.ps1
+```
+
+**Linux/Mac (Bash/Zsh):**
+```bash
+source activate.sh
+# or
+. activate.sh
+```
+
+These scripts will activate the virtual environment and display helpful commands.
+
 ## Troubleshooting
 
 **Import errors when running**:
@@ -227,6 +321,12 @@ source venv/bin/activate  # Linux/Mac
 
 # Reinstall dependencies
 pip install -r requirements.txt
+```
+
+**Permission denied on Linux/Mac**:
+```bash
+# Make scripts executable
+chmod +x run.sh activate.sh
 ```
 
 **Port 8000 already in use**:

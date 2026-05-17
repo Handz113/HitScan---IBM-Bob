@@ -112,6 +112,7 @@ class AnalyzeResponse(BaseModel):
     findings: FindingsGroup
     risk_matrix: RiskMatrix
     recommendations: List[str]
+    remediation_prompt: str = Field(..., description="AI-ready prompt for automatic code fixing")
 
 
 class HealthResponse(BaseModel):
